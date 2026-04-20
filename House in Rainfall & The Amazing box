@@ -1,0 +1,387 @@
+# Task 1: House in Rainfall 
+from OpenGL.GL import *
+from OpenGL.GLUT import *
+from OpenGL.GLU import *
+import random
+
+WINDOW_WIDTH, WINDOW_HEIGHT = 800, 600
+VIEW_WIDTH, VIEW_HEIGHT = 500, 500
+PRECIPITATION_COUNT = 150
+precipitation_points = []
+precipitation_speed = 5.0
+wind_factor = 0.0
+MAX_WIND = 1.5
+sky_color = [0.05, 0.05, 0.1]
+GROUND_LEVEL = -100
+HOUSE_WIDTH = 180
+HOUSE_HEIGHT = 150
+HOUSE_Y = GROUND_LEVEL + 10
+HOUSE_X = 0
+
+def initialize_precipitation():
+    global precipitation_points
+    precipitation_points = []
+    for _ in range(PRECIPITATION_COUNT):
+        x = random.uniform(-VIEW_WIDTH / 2, VIEW_WIDTH / 2)
+        y = random.uniform(-VIEW_HEIGHT / 2, VIEW_HEIGHT / 2)
+        precipitation_points.append([x, y, x])
+
+def render_landscape():
+    glColor3f(0.5, 0.3, 0.1)
+    glBegin(GL_TRIANGLES)
+    glVertex2f(-VIEW_WIDTH / 2, -VIEW_HEIGHT / 2)
+    glVertex2f(VIEW_WIDTH / 2, -VIEW_HEIGHT / 2)
+    glVertex2f(VIEW_WIDTH / 2, GROUND_LEVEL)
+    glVertex2f(-VIEW_WIDTH / 2, -VIEW_HEIGHT / 2)
+    glVertex2f(VIEW_WIDTH / 2, GROUND_LEVEL)
+    glVertex2f(-VIEW_WIDTH / 2, GROUND_LEVEL)
+    glEnd()
+
+    HEDGE_HEIGHT = 50
+    HEDGE_COUNT = 25
+    HEDGE_START_X = -VIEW_WIDTH / 2
+    HEDGE_STEP = VIEW_WIDTH / HEDGE_COUNT
+
+    glBegin(GL_TRIANGLES)
+    for i in range(HEDGE_COUNT + 1):
+        x_base = HEDGE_START_X + i * HEDGE_STEP
+        glColor3f(0.0, 0.5, 0.0)
+        glVertex2f(x_base, GROUND_LEVEL)
+        glColor3f(0.0, 1.0, 0.0)
+        glVertex2f(x_base + HEDGE_STEP / 2, GROUND_LEVEL + HEDGE_HEIGHT)
+        glColor3f(0.0, 0.5, 0.0)
+        glVertex2f(x_base + HEDGE_STEP, GROUND_LEVEL)
+    glEnd()
+
+def render_house():
+    body_y_bottom = HOUSE_Y
+    body_y_top = HOUSE_Y + HOUSE_HEIGHT
+    body_x_left = HOUSE_X - HOUSE_WIDTH / 2
+    body_x_right = HOUSE_X + HOUSE_WIDTH / 2
+
+    glColor3f(0.95, 0.95, 0.9)
+    glBegin(GL_TRIANGLES)
+    glVertex2f(body_x_left, body_y_bottom)
+    glVertex2f(body_x_right, body_y_bottom)
+    glVertex2f(body_x_right, body_y_top)
+    glVertex2f(body_x_left, body_y_bottom)
+    glVertex2f(body_x_right, body_y_top)
+    glVertex2f(body_x_left, body_y_top)
+    glEnd()
+
+    roof_peak_y = body_y_top + 80
+    roof_x_left = body_x_left - 20
+    roof_x_right = body_x_right + 20
+
+    glColor3f(0.4, 0.2, 0.8)
+    glBegin(GL_TRIANGLES)
+    glVertex2f(roof_x_left, body_y_top)
+    glVertex2f(roof_x_right, body_y_top)
+    glVertex2f(HOUSE_X, roof_peak_y)
+    glEnd()
+
+    door_width, door_height = 40, 80
+    door_x_left = HOUSE_X - door_width / 2
+    door_x_right = HOUSE_X + door_width / 2
+    door_y_bottom = body_y_bottom
+    door_y_top = door_y_bottom + door_height
+
+    glColor3f(0.2, 0.6, 1.0)
+    glBegin(GL_TRIANGLES)
+    glVertex2f(door_x_left, door_y_bottom)
+    glVertex2f(door_x_right, door_y_bottom)
+    glVertex2f(door_x_right, door_y_top)
+    glVertex2f(door_x_left, door_y_bottom)
+    glVertex2f(door_x_right, door_y_top)
+    glVertex2f(door_x_left, door_y_top)
+    glEnd()
+
+    glColor3f(0.0, 0.0, 0.0)
+    glPointSize(3)
+    glBegin(GL_POINTS)
+    glVertex2f(door_x_right - 5, door_y_bottom + door_height / 2)
+    glEnd()
+
+    window_size = 40
+    window_y = body_y_top - 60
+    window_x_offset = 60
+
+    def draw_window(center_x, center_y):
+        win_x_left = center_x - window_size / 2
+        win_x_right = center_x + window_size / 2
+        win_y_bottom = center_y - window_size / 2
+        win_y_top = center_y + window_size / 2
+
+        glColor3f(0.2, 0.6, 1.0)
+        glBegin(GL_TRIANGLES)
+        glVertex2f(win_x_left, win_y_bottom)
+        glVertex2f(win_x_right, win_y_bottom)
+        glVertex2f(win_x_right, win_y_top)
+        glVertex2f(win_x_left, win_y_bottom)
+        glVertex2f(win_x_right, win_y_top)
+        glVertex2f(win_x_left, win_y_top)
+        glEnd()
+
+        glColor3f(0.0, 0.0, 0.0)
+        glLineWidth(2)
+        glBegin(GL_LINES)
+        glVertex2f(win_x_left, center_y)
+        glVertex2f(win_x_right, center_y)
+        glVertex2f(center_x, win_y_bottom)
+        glVertex2f(center_x, win_y_top)
+        glEnd()
+
+    draw_window(HOUSE_X - window_x_offset, window_y)
+    draw_window(HOUSE_X + window_x_offset, window_y)
+
+def render_precipitation():
+    glLineWidth(1)
+    glBegin(GL_LINES)
+    for x, y, _ in precipitation_points:
+        if sky_color[0] > 0.5:
+            glColor3f(0.3, 0.3, 0.5)
+        else:
+            glColor3f(0.7, 0.7, 1.0)
+        glVertex2f(x, y)
+        glVertex2f(x - 5 + wind_factor * 5, y - 5)
+    glEnd()
+
+def move_precipitation():
+    global precipitation_points
+    for i in range(len(precipitation_points)):
+        precipitation_points[i][1] -= precipitation_speed
+        precipitation_points[i][0] += wind_factor
+        if precipitation_points[i][1] < -VIEW_HEIGHT / 2:
+            precipitation_points[i][1] = VIEW_HEIGHT / 2
+            precipitation_points[i][0] = precipitation_points[i][2]
+        if precipitation_points[i][0] > VIEW_WIDTH / 2:
+            precipitation_points[i][0] = -VIEW_WIDTH / 2
+        elif precipitation_points[i][0] < -VIEW_WIDTH / 2:
+            precipitation_points[i][0] = VIEW_WIDTH / 2
+
+def setup_viewport():
+    glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT)
+    glMatrixMode(GL_PROJECTION)
+    glLoadIdentity()
+    glOrtho(-VIEW_WIDTH / 2, VIEW_WIDTH / 2, -VIEW_HEIGHT / 2, VIEW_HEIGHT / 2, 0, 1)
+    glMatrixMode(GL_MODELVIEW)
+
+def display_scene():
+    glClearColor(sky_color[0], sky_color[1], sky_color[2], 1.0)
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+    glLoadIdentity()
+    setup_viewport()
+    render_landscape()
+    render_house()
+    render_precipitation()
+    glutSwapBuffers()
+
+def animation_timer(value):
+    move_precipitation()
+    glutPostRedisplay()
+    glutTimerFunc(10, animation_timer, 10)
+
+def handle_key_press(key, x, y):
+    global sky_color
+    DAY_COLOR = [0.53, 0.81, 0.98]
+    NIGHT_COLOR = [0.05, 0.05, 0.1]
+    TRANSITION_SPEED = 0.02
+    if key == b'1':
+        for i in range(3):
+            if sky_color[i] < DAY_COLOR[i]:
+                sky_color[i] = min(DAY_COLOR[i], sky_color[i] + TRANSITION_SPEED)
+        print(f"Transitioning to DAY: {sky_color}")
+    elif key == b'2':
+        for i in range(3):
+            if sky_color[i] > NIGHT_COLOR[i]:
+                sky_color[i] = max(NIGHT_COLOR[i], sky_color[i] - TRANSITION_SPEED)
+        print(f"Transitioning to NIGHT: {sky_color}")
+    glutPostRedisplay()
+
+def handle_special_key(key, x, y):
+    global wind_factor
+    if key == GLUT_KEY_LEFT:
+        wind_factor = max(-MAX_WIND, wind_factor - 0.1)
+        print(f"Wind factor left: {wind_factor:.2f}")
+    elif key == GLUT_KEY_RIGHT:
+        wind_factor = min(MAX_WIND, wind_factor + 0.1)
+        print(f"Wind factor right: {wind_factor:.2f}")
+    glutPostRedisplay()
+
+def run_assignment_t1():
+    initialize_precipitation()
+    glutInit()
+    glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH)
+    glutInitWindowSize(WINDOW_WIDTH, WINDOW_HEIGHT)
+    glutInitWindowPosition(100, 100)
+    glutCreateWindow(b"Assignment T1: House in Rainfall (Unique Implementation)")
+    glutDisplayFunc(display_scene)
+    glutKeyboardFunc(handle_key_press)
+    glutSpecialFunc(handle_special_key)
+    glutTimerFunc(10, animation_timer, 10)
+    glutMainLoop()
+
+if __name__ == "__main__":
+    run_assignment_t1()
+
+
+# Task 2: The Amazing Box
+
+from OpenGL.GL import *
+from OpenGL.GLUT import *
+from OpenGL.GLU import *
+import random
+import math
+
+WINDOW_WIDTH, WINDOW_HEIGHT = 800, 600
+VIEW_WIDTH, VIEW_HEIGHT = 500, 500
+
+particle_list = []
+velocity_scale = 1.0
+is_paused = False
+is_flashing = False
+flash_toggle = False
+flash_timer = 0
+FLASH_INTERVAL = 500
+CONTAINER_SIZE = 200
+BG_COLOR = [0.0, 0.0, 0.0]
+
+def screen_to_gl_coords(x, y):
+    gl_x = x - (WINDOW_WIDTH / 2)
+    gl_y = (WINDOW_HEIGHT / 2) - y
+    return gl_x, gl_y
+
+class Particle:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.color = [random.random(), random.random(), random.random()]
+        dx = random.choice([-1, 1])
+        dy = random.choice([-1, 1])
+        self.direction = [dx, dy]
+        self.base_speed = 0.5
+
+    def update_position(self):
+        global velocity_scale
+        if is_paused:
+            return
+        speed = self.base_speed * velocity_scale
+        next_x = self.x + self.direction[0] * speed
+        next_y = self.y + self.direction[1] * speed
+        if next_x > CONTAINER_SIZE or next_x < -CONTAINER_SIZE:
+            self.direction[0] *= -1
+            next_x = self.x + self.direction[0] * speed
+        if next_y > CONTAINER_SIZE or next_y < -CONTAINER_SIZE:
+            self.direction[1] *= -1
+            next_y = self.y + self.direction[1] * speed
+        self.x = next_x
+        self.y = next_y
+
+    def render(self):
+        if is_flashing and flash_toggle:
+            glColor3f(BG_COLOR[0], BG_COLOR[1], BG_COLOR[2])
+        else:
+            glColor3f(self.color[0], self.color[1], self.color[2])
+        glPointSize(5)
+        glBegin(GL_POINTS)
+        glVertex2f(self.x, self.y)
+        glEnd()
+
+def render_container_boundary():
+    glColor3f(1.0, 1.0, 1.0)
+    glLineWidth(2)
+    glBegin(GL_LINES)
+    glVertex2f(-CONTAINER_SIZE, -CONTAINER_SIZE)
+    glVertex2f(CONTAINER_SIZE, -CONTAINER_SIZE)
+    glVertex2f(-CONTAINER_SIZE, CONTAINER_SIZE)
+    glVertex2f(CONTAINER_SIZE, CONTAINER_SIZE)
+    glVertex2f(-CONTAINER_SIZE, -CONTAINER_SIZE)
+    glVertex2f(-CONTAINER_SIZE, CONTAINER_SIZE)
+    glVertex2f(CONTAINER_SIZE, -CONTAINER_SIZE)
+    glVertex2f(CONTAINER_SIZE, CONTAINER_SIZE)
+    glEnd()
+
+def update_all_particles():
+    for particle in particle_list:
+        particle.update_position()
+
+def render_all_particles():
+    for particle in particle_list:
+        particle.render()
+
+def setup_viewport():
+    glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT)
+    glMatrixMode(GL_PROJECTION)
+    glLoadIdentity()
+    glOrtho(-VIEW_WIDTH/2, VIEW_WIDTH/2, -VIEW_HEIGHT/2, VIEW_HEIGHT/2, 0, 1)
+    glMatrixMode(GL_MODELVIEW)
+
+def display_scene():
+    glClearColor(BG_COLOR[0], BG_COLOR[1], BG_COLOR[2], 1.0)
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+    glLoadIdentity()
+    setup_viewport()
+    render_container_boundary()
+    render_all_particles()
+    glutSwapBuffers()
+
+def animation_timer(value):
+    global flash_timer, flash_toggle
+    update_all_particles()
+    if is_flashing and not is_paused:
+        flash_timer += value
+        if flash_timer >= FLASH_INTERVAL:
+            flash_toggle = not flash_toggle
+            flash_timer = 0
+    glutPostRedisplay()
+    glutTimerFunc(10, animation_timer, 10)
+
+def handle_key_press(key, x, y):
+    global is_paused
+    if key == b' ':
+        is_paused = not is_paused
+    glutPostRedisplay()
+
+def handle_special_key(key, x, y):
+    global velocity_scale
+    if is_paused:
+        return
+    if key == GLUT_KEY_UP:
+        velocity_scale *= 1.2
+    elif key == GLUT_KEY_DOWN:
+        velocity_scale /= 1.2
+    glutPostRedisplay()
+
+def handle_mouse_click(button, state, x, y):
+    global is_flashing, flash_timer, flash_toggle
+    if is_paused:
+        return
+    if state == GLUT_DOWN:
+        gl_x, gl_y = screen_to_gl_coords(x, y)
+        if button == GLUT_RIGHT_BUTTON:
+            if -CONTAINER_SIZE <= gl_x <= CONTAINER_SIZE and -CONTAINER_SIZE <= gl_y <= CONTAINER_SIZE:
+                particle_list.append(Particle(gl_x, gl_y))
+        elif button == GLUT_LEFT_BUTTON:
+            is_flashing = not is_flashing
+            if is_flashing:
+                flash_timer = 0
+                flash_toggle = False
+            else:
+                flash_toggle = False
+    glutPostRedisplay()
+
+def run_assignment_t2():
+    glutInit()
+    glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH)
+    glutInitWindowSize(WINDOW_WIDTH, WINDOW_HEIGHT)
+    glutInitWindowPosition(100, 100)
+    glutCreateWindow(b"Assignment T2: The Amazing Box (Unique Implementation)")
+    glutDisplayFunc(display_scene)
+    glutKeyboardFunc(handle_key_press)
+    glutSpecialFunc(handle_special_key)
+    glutMouseFunc(handle_mouse_click)
+    glutTimerFunc(10, animation_timer, 10)
+    glutMainLoop()
+
+if __name__ == "__main__":
+    run_assignment_t2()
